@@ -20,6 +20,13 @@ Within each timestep, the embeddings are arranged as a subsequence of channel-le
 
 Customise the nntp.env file in the project root folder to match your environment.
 
+**Environment.** The preprocessing scripts import the dataset classes from the `neuro_ntp` package, so the NeuroNTP environment must be installed and activated. From the repository root:
+
+```bash
+conda env create -f environment.yml
+conda activate neurontp
+```
+
 ## Preparing the datasets
 
 NeuroNTP uses a self-supervised dataset implementation built on our `EpilepsiaCoreDataset` / `EpilepsiaDatasetView` classes, so the data must first be preprocessed into a compatible format.
