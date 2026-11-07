@@ -1,0 +1,14 @@
+name: neurontp
+channels:
+  - conda-forge
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.11.14
+  - pip
+  - cuda-toolkit>=12.8,<12.9
+  - ninja
+
+  - pip:
+      - -e .[torch,eeg,data,viz,models,eeg-ml,dev]
+      - timescoring==0.0.6
