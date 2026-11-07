@@ -187,7 +187,7 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
             if c in df.columns:
                 df[c] = df[c].astype("Int64")
 
-        # Resolve filenames (your CSV already seems absolute, but keep simple join for relative)
+        # Filename resolver for abs/relative paths
         def _resolve(p: str) -> str:
             p = str(p)
             return p if os.path.isabs(p) else os.path.join(self.hdf_store_path, p)
@@ -271,7 +271,7 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
             )
         )
 
-        # Sanity: sessions with seizures should have typed events (as you stated)
+        # Sanity: validate if sessions have typed events
         typed = (
             self.markers_df[self.markers_df["marker"] == "seizure_type"]
             .groupby(["patient_id", "session_id"], as_index=False)
@@ -473,7 +473,6 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
                 kind = str(r.kind).strip().lower()
 
                 if not lab:
-                    # allow empty? I'd rather fail loudly; your CSV_BI should always have a label
                     raise RuntimeError(f"Empty event label in annotations.csv for {pid} {sid} @ {s}s")
 
                 marker_key = "seizure_type" if kind == "seizure_type" else "event_type"
@@ -604,7 +603,7 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
             ).astype(float)
 
     # ---------------------------------------------------------------------
-    # Types for persistence (same as you had; keep it)
+    # Types for persistence
     # ---------------------------------------------------------------------
     def __set_explicit_types(self):
         # ---------------- patients_df ----------------

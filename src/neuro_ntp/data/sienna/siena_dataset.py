@@ -98,9 +98,19 @@ def _read_h5_header(h5_path: str) -> Tuple[float, int, int, List[str]]:
 
 class SienaCoreDataset(EpilepsiaCoreDataset):
     """
-    HDF-backed Siena core dataset, built from conversion outputs:
-      - sessions.csv (required)
-      - annotations.csv (optional but recommended)
+    Core dataset of the Siena Scalp EEG Database, built from the outputs of the HDF5 conversion (siena2hdf.py).
+
+    Construction:
+        SienaCoreDataset(root_dir=...)       build from sessions.csv and annotations.csv in the HDF5 root
+        SienaCoreDataset(ds_filepath=...)    load a core dataset previously saved with save()
+
+    Tables:
+        patients_df    one row per patient
+        session_df     one row per recording (session_id = record name), with file path, sampling rate, signal
+                       length, duration, number of seizures and channel names
+        markers_df     seizure annotations (onset and duration in seconds per recording)
+
+    The saved core dataset contains metadata only; the signal data remains in the HDF5 store.
     """
 
     def __init__(
@@ -345,7 +355,6 @@ def parse_siena_seizure_lists(root_dir: str) -> List[SienaSeizureEvent]:
 
             # Optional fallback: if a line starts with "Seizure ... time" but regex didn't match,
             # try to extract the first time token anywhere on the line.
-            # (This is what saves you from really weird formatting.)
             low = s.lower()
             if low.startswith("registration start time"):
                 reg_start = _find_time(s) or reg_start

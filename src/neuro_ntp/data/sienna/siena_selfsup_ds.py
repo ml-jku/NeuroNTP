@@ -66,7 +66,7 @@ class SienaSelfSupervisedDatasetView(EpilepsiaDatasetView):
 
         # ---- compatibility with existing KUK/TUH views ----
         if "chunk_size" not in self.cfg:
-            # keep semantics as seconds (matches how you use chunk_size_s)
+            # keep semantics as seconds compatible with abstract chunk_size_s
             self.cfg["chunk_size"] = float(self.cfg.get("chunk_size_s", 10.0))
 
         if "chunk_len" not in self.cfg:
@@ -143,7 +143,7 @@ class SienaSelfSupervisedDatasetView(EpilepsiaDatasetView):
             mdf = mdf[mdf["description"].str.lower().eq("seizure")].copy()
 
             for r in mdf.itertuples(index=False):
-                key = (str(r.patient_id), str(r.session_id))  # session_id is record_name alias you added
+                key = (str(r.patient_id), str(r.session_id))  # session_id is record_name alias (unique)
                 start = float(r.onset_sec)
                 end = start + float(r.duration_sec)
                 sz_by.setdefault(key, []).append((start, end))

@@ -335,7 +335,7 @@ def canon_patient(x: str) -> str:
 
 
 def canon_session(x: str) -> str:
-    # treat "PN11-.edf" stem as "PN11" (matches your CSV PN11)
+    # treat "PN11-.edf" stem as "PN11"
     s = Path(str(x).strip()).stem
     s = s.strip()
     if s.endswith("-"):
@@ -525,7 +525,7 @@ def edf_to_hdf5_siena(
     edf_path: str,
     out_h5_path: str,
     seizure_by_file: Dict[Tuple[str, str], List[Tuple[float, float]]],  # (patient, session) -> [(s,e)]
-    supported_channels: List[str],  # normalized names you want in output order
+    supported_channels: List[str],  # normalized names
     target_sfreq: int = 256,
     compression_ratio: int = 4,
 ) -> Tuple[dict, List[dict]]:
@@ -573,7 +573,7 @@ def edf_to_hdf5_siena(
     durations = np.array([e - s for s, e in seizures], dtype=float)
     desc = np.array(["seizure"] * len(seizures), dtype=object)
 
-    # write HDF5 compatible with your loader
+    # the final output hdf5 files in expected format
     with h5py.File(str(out_h5_path), "w") as hdf:
         hdf.create_dataset("signal", data=x, compression="gzip", compression_opts=compression_ratio, shuffle=True)
 
