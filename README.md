@@ -44,3 +44,17 @@ The weights of the model pretrained on the Kepler Universitätsklinikum (KUK) da
 ### Multi-GPU training
 
 Currently, the pretraining code is compatible with single GPU training only, multi-GPU is not supported.
+
+## Citation
+
+If you found this work useful, please cite our paper:
+
+```bibtex
+@inproceedings{kovacs2026neurontp,
+  title     = {{NeuroNTP} -- A Generalizable Multimodal Foundation Model for Epilepsy},
+  author    = {Kov{\'a}cs, J{\'o}zsef and Hauser, Amadeus and Gr{\"o}ppel, Gudrun and Narzt, Wolfgang and Seidl, Philipp},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2026},
+  url       = {https://openreview.net/forum?id=seM8LkgKy6}
+}
+```
