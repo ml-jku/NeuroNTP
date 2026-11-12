@@ -1,0 +1,54 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite our paper."
+title: "NeuroNTP"
+abstract: "A generalizable multimodal foundation model for epilepsy, pretrained with next-token prediction on EEG, ECG, SpO2 and clinical text."
+type: software
+license: MIT
+repository-code: "https://github.com/ml-jku/NeuroNTP"
+url: "https://openreview.net/forum?id=seM8LkgKy6"
+keywords:
+  - EEG
+  - epilepsy
+  - seizure detection
+  - foundation model
+  - xLSTM
+authors:
+  - given-names: "József"
+    family-names: "Kovács"
+    affiliation: "Johannes Kepler University Linz"
+  - given-names: "Amadeus"
+    family-names: "Hauser"
+    affiliation: "Johannes Kepler University Linz"
+  - given-names: "Gudrun"
+    family-names: "Gröppel"
+    affiliation: "Johannes Kepler University Linz"
+  - given-names: "Wolfgang"
+    family-names: "Narzt"
+    affiliation: "Johannes Kepler University Linz"
+  - given-names: "Philipp"
+    family-names: "Seidl"
+    affiliation: "Johannes Kepler University Linz"
+preferred-citation:
+  type: conference-paper
+  title: "NeuroNTP - A Generalizable Multimodal Foundation Model for Epilepsy"
+  authors:
+    - given-names: "József"
+      family-names: "Kovács"
+      affiliation: "Johannes Kepler University Linz"
+    - given-names: "Amadeus"
+      family-names: "Hauser"
+      affiliation: "Johannes Kepler University Linz"
+    - given-names: "Gudrun"
+      family-names: "Gröppel"
+      affiliation: "Johannes Kepler University Linz"
+    - given-names: "Wolfgang"
+      family-names: "Narzt"
+      affiliation: "Johannes Kepler University Linz"
+    - given-names: "Philipp"
+      family-names: "Seidl"
+      affiliation: "Johannes Kepler University Linz"
+  collection-title: "Advances in Neural Information Processing Systems"
+  conference:
+    name: "NeurIPS 2026"
+  year: 2026
+  url: "https://openreview.net/forum?id=seM8LkgKy6"

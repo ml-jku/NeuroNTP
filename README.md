@@ -1,5 +1,10 @@
-# NeuroNTP: A Generalizble Multimodal Foundation Model for Epilepsy
+# NeuroNTP: A Generalizable Multimodal Foundation Model for Epilepsy
 
+[![NeurIPS 2026](https://img.shields.io/badge/NeurIPS-2026-6f42c1)](https://neurips.cc/virtual/2026/poster/149129)
+[![Paper](https://img.shields.io/badge/paper-OpenReview-8c1b13)](https://openreview.net/forum?id=seM8LkgKy6)
+[![Weights](https://img.shields.io/badge/weights-download-2ea44f)](https://cloud.ml.jku.at/s/Fs3sz2R7oWs6b6C)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Status](https://img.shields.io/badge/status-partial%20release-orange)
 
 > [!NOTE]
@@ -14,7 +19,26 @@ Pretraining is driven by next-token prediction, with auxiliary tasks in a multit
 
 Within each timestep, the embeddings are arranged as a subsequence of channel-level tokens. This forms one continuous token stream, so the model learns to predict the next embedding from the history of channel-level tokens.
 
-![NeuroNTP channel-level tokenization](./res/nntp_architecture_channel.jpg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./res/nntp_architecture_channel_dark.png">
+  <img alt="NeuroNTP channel-level tokenization" src="./res/nntp_architecture_channel.png">
+</picture>
+
+## Results on public benchmarks
+
+Seizure detection on CHB-MIT and Siena Scalp EEG with NeuroNTP pretrained on the KUK dataset. Values are means in %; best per column in bold.
+
+| Model | CHB-MIT BACC | CHB-MIT AUPRC | CHB-MIT AUROC | Siena BACC | Siena AUPRC | Siena AUROC |
+|---|---:|---:|---:|---:|---:|---:|
+| CNN-Transformer | 63.9 | 24.8 | 86.6 | 69.8 | 38.4 | 87.2 |
+| BIOT | 70.7 | 32.8 | 87.6 | 73.5 | 38.1 | 90.3 |
+| LaBraM-Base | 70.8 | 32.9 | 86.8 | 70.8 | 31.2 | 88.1 |
+| CBraMod | 74.0 | 36.9 | 88.9 | 73.2 | 41.1 | 90.4 |
+| EEGMamba | 74.5 | 38.9 | 89.4 | – | – | – |
+| CSBrain | 72.6 | **51.6** | 89.2 | 76.6 | **48.7** | 90.8 |
+| **NeuroNTP (ours)** | **75.1** | 43.1 | **93.5** | **82.0** | 43.5 | **93.4** |
+
+Baseline results are taken from [CBraMod](https://arxiv.org/abs/2412.07236) (CHB-MIT) and [CSBrain](https://arxiv.org/abs/2506.23075) (Siena), and we follow their evaluation protocols. The paper has the full tables, including standard deviations and further baselines.
 
 ## Setting up the environment
 
