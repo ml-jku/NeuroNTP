@@ -26,7 +26,7 @@ Within each timestep, the embeddings are arranged as a subsequence of channel-le
 
 ## Results on public benchmarks
 
-Seizure detection on CHB-MIT and Siena Scalp EEG with NeuroNTP pretrained on the KUK dataset. Values are means in %; best per column in bold.
+Seizure detection on CHB-MIT and Siena Scalp EEG. NeuroNTP is pretrained multimodally on the KUK dataset, then fine-tuned and evaluated with biosignal-only input (no clinical markers, notes or TPS). Values are means in %; best per column in bold.
 
 | Model | CHB-MIT BACC | CHB-MIT AUPRC | CHB-MIT AUROC | Siena BACC | Siena AUPRC | Siena AUROC |
 |---|---:|---:|---:|---:|---:|---:|
@@ -36,7 +36,7 @@ Seizure detection on CHB-MIT and Siena Scalp EEG with NeuroNTP pretrained on the
 | CBraMod | 74.0 | 36.9 | 88.9 | 73.2 | 41.1 | 90.4 |
 | EEGMamba | 74.5 | 38.9 | 89.4 | – | – | – |
 | CSBrain | 72.6 | **51.6** | 89.2 | 76.6 | **48.7** | 90.8 |
-| **NeuroNTP (ours)** | **75.1** | 43.1 | **93.5** | **82.0** | 43.5 | **93.4** |
+| **NeuroNTP (ours)** | **84.7** | 45.4 | **93.8** | **87.5** | 46.6 | **93.6** |
 
 Baseline results are taken from [CBraMod](https://arxiv.org/abs/2412.07236) (CHB-MIT) and [CSBrain](https://arxiv.org/abs/2506.23075) (Siena), and we follow their evaluation protocols. The paper has the full tables, including standard deviations and further baselines.
 
