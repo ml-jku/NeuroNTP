@@ -1,0 +1,112 @@
+# KUK v3 - Self-supervised 30 x 10-sec pretraining
+# ------------------------------------------------
+
+core_dataset_class: "neuro_ntp.data.kuk.kuk_dataset.KUKCoreDataset"
+dataset_view_class: "neuro_ntp.data.kuk.kuk_selfsup_ds.KUKSelfsupervisedDatasetView"
+
+sampling_strategy: pretraining         # pretraining
+sampling_freq: 256                     # sampling frequency
+
+seq_len: 30                            # sequence length (nr. of chunks taken for historic context)
+chunk_size: 10.0                       # length of one chunk in seconds
+overlap: 0.0                           # overlap between chunks (default: 0)
+max_ts: 1000000000                     # maximum value in TPS/TTS calculations
+
+split: patient                         # how to split the samples: temporal|patient|random
+split_ratio:                           # the split ratio: training, validation, test 
+- 0.75
+- 0.1
+- 0.15
+
+omit_nonictal_patients: true           # should patients without any seizures be omitted in sampling
+omit_nonictal_sessions: true           # should session (files) without any seizures be omitted in sampling
+lead_seizure_separation: 3600          # distance of a lead seizure from any preceding seizure (separation)
+postictal_separation: 3600             # min. time after ictal in sec. to consider a sample baseline (non-ictal)
+preictal_length: 900                   # length (in seconds) of pre-ictal interval to sample from
+preictal_setback: 300                  # interval before ictal not to sample from (bin.forecasting and threefold)
+
+channels: all                          # which channels to use (NB: not used az core dataset level)
+min_num_channels: 33                   # min. number of channels for acceptable sample
+
+priority_markers:
+- EEG-Beginn
+- EEG-Ende
+- Anfallsbeginn
+- Anfallsende
+- Anfall
+- Polyspikes
+- Spike
+- Arousal
+- PAT
+- links
+- rechts
+- beidseits
+- frontal
+- Fehlalarm
+
+
+exclude_markers:
+- VID
+- REC
+- MON
+- Aa
+- Az
+- TXT
+- Text
+
+markers_to_reconstruct:
+- anfall
+- anfallsbeginn
+- eeg-beginn
+- eeg-ende
+- polyspikes
+- spike
+- links
+- rechts
+- beidseits
+- frontal
+- fronto
+- arousal
+- serie
+- ekg
+- fla
+- hv
+- artefakt
+- rem
+- pat
+- myoklonus
+
+channel_order:                         # required order of channels when reading partial signal
+- EEG FP1
+- EEG FP2
+- EEG F7
+- EEG F3
+- EEG FZ
+- EEG F4
+- EEG F8
+- EEG T7
+- EEG C3
+- EEG CZ
+- EEG C4
+- EEG T8
+- EEG P7
+- EEG P3
+- EEG PZ
+- EEG P4
+- EEG P8
+- EEG O1
+- EEG O2
+- EEG M1
+- EEG M2
+- EEG F10
+- EEG F9
+- EEG FT10
+- EEG FT8
+- EEG FT7
+- EEG FT9
+- EEG T10
+- EEG T9
+- EEG EOGL
+- EEG EOGR
+- SAO2 SpO2
+- ECG EKG

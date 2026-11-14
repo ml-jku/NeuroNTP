@@ -13,7 +13,7 @@ License: MIT (see LICENSE)
 Description:
     First preprocessing step for CHB-MIT. Creates the storage structure expected by the Epilepsia dataset logic in
     nntp: one HDF5 file per EDF recording, plus CSV index tables. The core datasets and dataset views used for
-    pretraining are generated from these files in a subsequent step.
+    fine-tuning and evaluation are generated from these files in a subsequent step.
 
     The source EDF recordings are converted to compressed HDF5, which allows efficient partial reads of the signal
     without decoding the full EDF. The metadata required for the later core/view generation is stored with each file:
@@ -40,12 +40,16 @@ Output:
         root attributes                              patient_id, record_name
 
 Usage:
-    python chb2hdf.py /data/chbmit/1.0.0 --out_hdf_root /data/nntp/chb_hdf --n_jobs 8
+    python scripts/chb2hdf.py datasets/raw/chbmit/1.0.0 --out_hdf_root datasets/hdf5/chbmit --n_jobs 8
 
     Defaults: native sampling rate (256 Hz), gzip level 4. Use --sampling_freq to resample.
 
 Notes:
-    - Storage: approx. 160 GB for CHB-MIT v1.0.0 with the default settings.
+    - Completeness: all 24 patients (chb01-chb24) must be present with their chbXX-summary.txt file, and every
+      recording listed in the summary files must be present as EDF; otherwise the conversion stops with a list of
+      the missing files (an incomplete download would silently shrink the dataset or drop seizure annotations).
+      Use scripts/download_data.py to download and verify CHB-MIT; --allow_missing converts an incomplete copy anyway.
+    - Storage: approx. 39 GB for CHB-MIT v1.0.0 with the default settings (raw EDF: approx. 43 GB).
     - Channel names are taken from the EDF header. MNE appends "-0", "-1", ... to duplicate channel names; the "-0"
       suffix is removed, further duplicates keep their suffix.
     - Patient identifiers follow the directory names. chb01 and chb21 were recorded from the same subject
@@ -66,6 +70,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import re
+import warnings
 
 
 def parse_single_chb_summary_txt(path: Path) -> Dict:
@@ -175,6 +180,43 @@ def load_all_summaries(chb_root: Path) -> Dict[str, Dict]:
     return summaries
 
 
+EXPECTED_PATIENTS = {f"chb{i:02d}" for i in range(1, 25)}
+
+
+def check_completeness(chb_root: Path, summaries: Dict[str, Dict], edf_files: List[Path]) -> List[str]:
+    """
+    Check the CHB-MIT copy below chb_root for completeness:
+        - every patient chb01-chb24 has a directory with EDF files,
+        - every patient with EDF files has a chbXX-summary.txt file (otherwise its seizure annotations would be lost),
+        - every recording listed in the summaries is present as EDF.
+    Prints the result and returns the problems as "<patient>/<file>" entries.
+    """
+    found = {(p.parent.name, p.name) for p in edf_files}
+    expected = {(pid, rec) for pid, s in summaries.items() for rec in s["records"]}
+    patients_with_edf = {pid for pid, _ in found}
+
+    absent = sorted(EXPECTED_PATIENTS - patients_with_edf)
+    no_summary = sorted(patients_with_edf - set(summaries))
+    missing = sorted(f"{pid}/{rec}" for pid, rec in expected - found)
+    unlisted = sorted(f"{pid}/{rec}" for pid, rec in found - expected if pid in summaries)
+
+    print(f"...found {len(edf_files)} EDF files for {len(patients_with_edf)} patients "
+          f"({len(summaries)} summary files, {len(expected)} recordings listed in the summaries)")
+    if unlisted:
+        print(f"...{len(unlisted)} EDF files not listed in a summary (converted without annotations): "
+              + ", ".join(unlisted))
+    if absent:
+        print(f"...MISSING: {len(absent)} patients have no EDF files: " + ", ".join(absent))
+    if no_summary:
+        print(f"...MISSING: {len(no_summary)} patients have EDF files but no summary file: " + ", ".join(no_summary))
+    if missing:
+        print(f"...MISSING: {len(missing)} recordings listed in the summaries have no EDF file:\n    "
+              + "\n    ".join(missing))
+    return ([f"{pid}/ (no EDF files)" for pid in absent]
+            + [f"{pid}/{pid}-summary.txt" for pid in no_summary]
+            + missing)
+
+
 def edf_to_hdf5_with_summary(
     edf_file_path: str,
     hdf5_file_path: str,
@@ -210,8 +252,11 @@ def edf_to_hdf5_with_summary(
     out_path = Path(hdf5_file_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # read EDF
-    raw = mne.io.read_raw_edf(edf_file_path, preload=True, verbose=verbose)
+    # read EDF; the duplicate-channel warning (T8-P8 appears twice in most recordings) is expected, the duplicates
+    # are handled below
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Channel names are not unique", category=RuntimeWarning)
+        raw = mne.io.read_raw_edf(edf_file_path, preload=True, verbose=verbose)
 
     # optional resample
     if new_sampling_freq is not None and float(new_sampling_freq) != raw.info["sfreq"]:
@@ -320,10 +365,12 @@ def main():
     parser.add_argument("--sampling_freq", type=int, default=None)
     parser.add_argument("--compression_ratio", type=int, default=4)
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--allow_missing", action="store_true",
+                        help="convert even if recordings listed in the summaries are missing (not recommended)")
     args = parser.parse_args()
 
     chb_root = Path(args.chb_root)
-    out_root = Path(args.out_hdf_root)
+    out_root = Path(args.out_hdf_root).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
 
     # 1) load all summaries once
@@ -331,7 +378,15 @@ def main():
 
     # 2) collect all EDFs
     # pattern: chb01/*.edf, chb02/*.edf, ...
-    edf_files = [p for p in chb_root.rglob("*.edf")]
+    edf_files = sorted(chb_root.rglob("*.edf"))
+    if not summaries_by_patient and not edf_files:
+        raise SystemExit(f"no CHB-MIT summary or EDF files found below {chb_root}; is this the CHB-MIT root?")
+
+    # 2b) check against the recordings listed in the summaries
+    missing = check_completeness(chb_root, summaries_by_patient, edf_files)
+    if missing and not args.allow_missing:
+        raise SystemExit("Incomplete CHB-MIT copy; download the missing files (scripts/download_data.py --datasets "
+                         "chbmit) or rerun with --allow_missing.")
 
     # 3) parallel convert
     def _worker(edf_file):

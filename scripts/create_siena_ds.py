@@ -45,7 +45,7 @@ Output:
 Usage:
     python create_siena_ds.py --hdf_root /data/nntp/siena_hdf --out_dir /data/nntp/siena
 
-    Defaults: test patients PN16 PN17, validation ratio 0.2, seed 42. Existing core dataset and default view files
+    Defaults: test patients PN16 PN17, validation ratio 0.2, seed 32. Existing core dataset and default view files
     are reused unless --overwrite is given; balanced and test views are always rebuilt from the default view.
 
     To use the released balanced view (the exact fine-tuning selection) instead of drawing a new one:
@@ -56,8 +56,9 @@ Notes:
     - Core dataset and views store the HDF5 file paths as given in sessions.csv; they have to be created on the
       system where the HDF5 store resides.
     - A newly drawn balanced view depends on the random seed (--seed). The released template contains the
-      selection used for fine-tuning, with the HDF5 root replaced by the placeholder "<ROOT>". When localizing it,
-      the referenced HDF5 files are checked against the stored sampling rates and signal lengths, so the HDF5
+      selection used for fine-tuning, with the HDF5 root replaced by the placeholder "<ROOT>" and the core dataset
+      reference by "<CORE>". When localizing it, both are set to the local paths, and the referenced HDF5 files
+      are checked against the core dataset (existence, sampling rate, signal length, sample ranges), so the HDF5
       store must have been produced with siena2hdf.py at the default settings.
 +----------------------------------------------------------------------------------------------------------------------+
 """
@@ -81,6 +82,7 @@ DEFAULT_VIEW_FILE = "siena_selfsup_dv.h5"
 BAL_VIEW_FILE = "siena_selfsup_dv_bal.h5"
 
 ROOT_PLACEHOLDER = "<ROOT>"
+CORE_PLACEHOLDER = "<CORE>"
 
 
 def test_view_file(test_patients: Sequence[str]) -> str:
@@ -89,15 +91,33 @@ def test_view_file(test_patients: Sequence[str]) -> str:
     return f"siena_selfsup_{suffix}_dv.h5"
 
 
+def rebase_core_paths(core_ds: SienaCoreDataset, hdf_root: Path) -> None:
+    """
+    Point the HDF5 file paths of the core dataset to hdf_root (layout <hdf_root>/<patient>/<record>.h5). The paths
+    in sessions.csv and annotations.csv are those of the conversion run, which differ if the HDF5 store was moved or
+    renamed afterwards.
+    """
+    def _rebase(f) -> str:
+        p = Path(str(f))
+        return str(hdf_root / p.parent.name / p.name)
+
+    for df in (core_ds.session_df, getattr(core_ds, "markers_df", None)):
+        if df is not None and "filename" in df.columns:
+            df["filename"] = df["filename"].map(_rebase)
+    core_ds.hdf_store_path = str(hdf_root)
+
+
 def build_core_dataset(hdf_root: Path, core_path: Path, overwrite: bool) -> SienaCoreDataset:
     """
-    Build the core dataset from the conversion outputs in hdf_root and save it to core_path.
-    An existing core dataset file is reused unless overwrite is set. The returned object is loaded from file.
+    Build the core dataset from the conversion outputs in hdf_root and save it to core_path, with all HDF5 file
+    paths pointing to hdf_root. An existing core dataset file is reused unless overwrite is set. The returned object
+    is loaded from file.
     """
     if core_path.exists() and not overwrite:
         print(f"...using existing core dataset {core_path}")
     else:
         core_ds = SienaCoreDataset(root_dir=str(hdf_root))
+        rebase_core_paths(core_ds, hdf_root)
         core_ds.save(str(core_path))
     return SienaCoreDataset(ds_filepath=str(core_path))
 
@@ -212,32 +232,51 @@ def make_test_view(default_view_path: Path, out_path: Path, test_patients: Seque
     dv.save(str(out_path))
 
 
-def replace_root(dv: SienaSelfSupervisedDatasetView, old_root: str, new_root: str) -> None:
+def _copy_view_store(src: Path, dst: Path, old_root: str, new_root: str, core_ds_filepath: str) -> None:
     """
-    Replace the HDF5 root in all file paths of a dataset view and its core dataset (in place).
+    Copy a dataset view store (pandas HDFStore) to dst, replacing old_root by new_root in all file paths and setting
+    the reference to the core dataset. The view is copied at store level, so it is not loaded (loading a view also
+    loads the core dataset it references, which may not exist on this system).
     """
-    def _repl_df(df: Optional[pd.DataFrame]) -> None:
-        if df is not None and "filename" in df.columns:
-            df["filename"] = df["filename"].astype(str).str.replace(old_root, new_root, regex=False)
+    with pd.HDFStore(str(src), "r") as s_in, pd.HDFStore(str(dst), "w") as s_out:
+        for key in s_in.keys():
+            obj = s_in[key]
+            if isinstance(obj, pd.DataFrame) and "filename" in obj.columns:
+                obj = obj.copy()
+                obj["filename"] = obj["filename"].astype(str).str.replace(old_root, new_root, regex=False)
+            s_out.put(key, obj)
 
-    _repl_df(dv.samples_df)
-    _repl_df(getattr(dv, "chunks_df", None))
+        # view parameters (name, core dataset reference); attributes written by put() are kept as they are
+        a_in = s_in.get_storer("params").attrs
+        a_out = s_out.get_storer("params").attrs
+        existing = set(a_out._v_attrnamesuser)
+        for name in a_in._v_attrnamesuser:
+            if name not in existing:
+                setattr(a_out, name, getattr(a_in, name))
+        a_out.core_ds_filepath = str(core_ds_filepath)
 
-    core = getattr(dv, "core_ds", None)
-    if core is not None:
-        _repl_df(getattr(core, "session_df", None))
-        _repl_df(getattr(core, "markers_df", None))
-        if isinstance(getattr(core, "hdf_store_path", None), str):
-            core.hdf_store_path = core.hdf_store_path.replace(old_root, new_root)
 
-
-def verify_hdf_store(dv: SienaSelfSupervisedDatasetView) -> None:
+def export_view_template(view_path: Path, template_path: Path, hdf_root: Path) -> None:
     """
-    Check that the HDF5 files referenced by a dataset view exist and match the session metadata (sampling rate and
-    signal length), i.e. that the HDF5 store was produced by the same conversion.
+    Create a releasable template of a dataset view: the HDF5 root in all file paths is replaced by ROOT_PLACEHOLDER
+    and the core dataset reference by CORE_PLACEHOLDER, so that the template contains no local paths.
     """
+    _copy_view_store(view_path, template_path, str(hdf_root).rstrip("/"), ROOT_PLACEHOLDER, CORE_PLACEHOLDER)
+
+
+def verify_view_files(dv: SienaSelfSupervisedDatasetView) -> None:
+    """
+    Check that the HDF5 files referenced by a dataset view exist, belong to its core dataset, match the session
+    metadata (sampling rate and signal length) and cover the sample index ranges of the view, i.e. that the local
+    HDF5 store was produced by the same conversion as the one the view was created from.
+    """
+    def _norm(p) -> str:
+        return str(Path(str(p)).resolve())
+
     session_df = dv.core_ds.session_df
+    lengths = {_norm(f): int(n) for f, n in zip(session_df["filename"], session_df["signal_length"])}
     errors = []
+
     for row in session_df.itertuples(index=False):
         path = Path(row.filename)
         if not path.exists():
@@ -249,19 +288,31 @@ def verify_hdf_store(dv: SienaSelfSupervisedDatasetView) -> None:
         if sfreq != float(row.sfreq) or signal_length != int(row.signal_length):
             errors.append(f"mismatch: {path} (sfreq {sfreq} vs {row.sfreq}, "
                           f"signal_length {signal_length} vs {row.signal_length})")
+
+    files = dv.samples_df["filename"].map(_norm)
+    for fn in sorted(set(files)):
+        if fn not in lengths:
+            errors.append(f"not in the core dataset: {fn}")
+
+    end_col = next((c for c in ("end_index", "end_index_256") if c in dv.samples_df.columns), None)
+    if end_col is not None:
+        for fn, end in dv.samples_df.groupby(files)[end_col].max().items():
+            if fn in lengths and int(end) > lengths[fn]:
+                errors.append(f"sample range exceeds the signal: {fn} ({end_col} {int(end)} > {lengths[fn]})")
+
     if errors:
         raise RuntimeError("HDF5 store does not match the dataset view:\n  " + "\n  ".join(errors))
 
 
-def localize_view(template_path: Path, out_path: Path, hdf_root: Path) -> None:
+def localize_view(template_path: Path, out_path: Path, hdf_root: Path, core_path: Path) -> None:
     """
-    Create a dataset view from a released template by replacing the root placeholder in all file paths with the
-    local HDF5 root, and verify the referenced HDF5 files.
+    Create a dataset view from a released template: replace the root placeholder in all file paths with the local
+    HDF5 root, reference the local core dataset (core_path), and verify the referenced HDF5 files.
     """
-    dv = SienaSelfSupervisedDatasetView(dv_filepath=str(template_path))
-    replace_root(dv, ROOT_PLACEHOLDER, str(hdf_root).rstrip("/"))
-    verify_hdf_store(dv)
-    dv.save(str(out_path))
+    _copy_view_store(template_path, out_path, ROOT_PLACEHOLDER, str(hdf_root).rstrip("/"), str(core_path))
+    dv = SienaSelfSupervisedDatasetView(dv_filepath=str(out_path))
+    verify_view_files(dv)
+    print(f"...localized view template {template_path} -> {out_path}")
 
 
 def main():
@@ -271,7 +322,7 @@ def main():
     ap.add_argument("--view_cfg", type=str, default=None, help="Optional YAML configuration for the default view")
     ap.add_argument("--test_patients", type=str, nargs="+", default=DEFAULT_TEST_PATIENTS)
     ap.add_argument("--val_ratio", type=float, default=0.2)
-    ap.add_argument("--seed", type=int, default=42, help="Random seed for the balanced view")
+    ap.add_argument("--seed", type=int, default=32, help="Random seed for the balanced view")
     ap.add_argument("--bal_template", type=str, default=None,
                     help="Released balanced view template; if given, it is localized instead of drawing a new "
                          "balanced selection")
@@ -290,7 +341,7 @@ def main():
     build_default_view(core_ds, default_view_path, view_cfg, args.overwrite)
 
     if args.bal_template:
-        localize_view(Path(args.bal_template), out_dir / BAL_VIEW_FILE, hdf_root)
+        localize_view(Path(args.bal_template), out_dir / BAL_VIEW_FILE, hdf_root, core_path)
     else:
         make_balanced_view(default_view_path, out_dir / BAL_VIEW_FILE, args.seed)
 

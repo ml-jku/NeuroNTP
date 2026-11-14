@@ -1,0 +1,30 @@
+# Pretraining of NeuroNTP (xLSTM backbone, channel tokens) on TUSZ
+# python run_pipeline.py configs/pipelines/tusz_pretrain.yaml --device 0
+
+vars:
+  ds_view: datasets/views/tusz/dv_selfsup_10s.h5
+  save_path: models/pretrain
+
+common:
+  device: 0
+  wandb: true
+
+stages:
+  - name: pretrain
+    mode: pretrain
+    args:
+      run_name: Pretrain_xLSTM_Channel_TUSZ_10s_${run_id}
+      nntp_cfg: configs/nntp/xlstm/pretrain/tusz_pretrain.yaml
+      ds_view: ${ds_view}
+      ds_no_cache: true
+      batch_size: 8
+      num_workers: 16
+      lr_scheduler: cos_warmup
+      lr_warmup: 0.1
+      lr: 0.0001
+      weight_decay: 0.00005
+      epochs: 100
+      save_path: ${save_path}
+      dump_every: 10
+      priority_sampling: true
+      token_masking: true

@@ -1,0 +1,31 @@
+# Quick start: downstream test of the released Siena fine-tuned NeuroNTP model on the held-out test patients of the
+# reference protocol (test view: PN16, PN17)
+# python run_pipeline.py configs/pipelines/siena_quickstart.yaml --device 0
+# another fine-tuned model: --set finetuned_ckpt=<checkpoint>
+
+vars:
+  finetuned_ckpt: models/finetune/siena/siena_finetuned.ckpt
+  test_view: datasets/views/siena/siena_selfsup_16_17_dv.h5
+
+# released Siena fine-tuned weights, downloaded on first use
+downloads:
+  models/finetune/siena/siena_finetuned.ckpt: https://cloud.ml.jku.at/s/H9EGJPWAsSiwKMZ/download
+
+common:
+  device: 0
+  wandb: false
+
+stages:
+  # downstream test of the fine-tuned model on the test view
+  - name: test
+    mode: dws_test
+    args:
+      run_name: DwsTest_Siena_Quickstart_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/siena_dws_test.yaml
+      ds_view: ${test_view}
+      ckpt_path: ${finetuned_ckpt}
+      batch_size: 6
+      num_workers: 12
+      epochs: 1
+      freeze_all: true
+      token_masking: true

@@ -6,47 +6,45 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "neuro_ntp"
 version = "1.1.0"
-description = "NeuroNTP module - multimodal self-supervised model for seizure detection and prediction"
+description = "NeuroNTP - multimodal self-supervised model for seizure detection and prediction"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Jozsef Kovacs" }, { name = "Philipp Seidl" }]
 license = { text = "MIT" }
 
 dependencies = [
-  # core numerical / data
+  # numerical / data
   "numpy>=2.0",
   "scipy>=1.12",
   "pandas>=2.2",
+  "tables>=3.9",              # pandas HDFStore (core datasets and dataset views)
+  "h5py>=3.10",
   "scikit-learn>=1.4",
+  "joblib>=1.3",
   "tqdm>=4.66",
+  "tqdm-joblib>=0.0.5",
 
-  # config / logging
+  # biosignal I/O
+  "mne>=1.6",
+  "pyedflib>=0.1.42",
+
+  # configuration
   "pyyaml>=6.0",
   "omegaconf>=2.3",
-  "hydra-core>=1.3",
-  "loguru>=0.7",
+  "dacite>=1.8",
 
-  # I/O & storage
-  "h5py>=3.10",
-
-  # deep learning (keep torch optional; see extras below)
-  # "torch>=2.4",
-  "torchmetrics>=1.4",
-  "einops>=0.7",
-
-  # training framework & tracking
-  "lightning>=2.5",
+  # deep learning and training
+  # torch: install the CUDA build matching the system first (see README); pip then keeps the installed build
+  "torch>=2.4",
+  "pytorch-lightning>=2.4,<2.5",
+  "transformers>=5.0",
+  "linear-attention-transformer>=0.19",
+  "xlstm>=2.0",
   "wandb>=0.17",
 
-  # HF ecosystem
-  "transformers>=4.45",
-  "accelerate>=0.30",
-  "safetensors>=0.4",
-  "tokenizers>=0.19",
-
-  # misc you appear to rely on
-  "dacite>=1.8",
-  "joblib>=1.3",
+  # evaluation and plotting
+  "timescoring>=0.0.6",
+  "matplotlib>=3.8",
 ]
 
 classifiers = [
@@ -56,67 +54,22 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Torch stack as opt-in (recommended; CUDA is handled by your conda env)
-torch = [
-  "torch>=2.4",
-  "torchvision>=0.19",
-  "torchaudio>=2.4",
+# CUDA Mamba backbone; requires a CUDA toolkit and compiler to build
+mamba = [
+  "mamba-ssm>=2.3",
 ]
 
-# EEG / biosignal ecosystem (big; keep optional unless truly required by import paths)
-eeg = [
-  "mne>=1.6",
-  "mne-features>=0.2",
-  "mne-connectivity>=0.5",
-  "mne-bids>=0.16",
-  "pyedflib>=0.1.42",
-  "wfdb>=4.1",
-  "soundfile>=0.12",
-]
-
-# parquet / large-data tooling (optional)
-data = [
-  "pyarrow>=14",
-  "fastparquet>=2024.2",
-  "tables>=3.9",
-  "xarray>=2024.1",
-  "dask>=2024.1",
-  "swifter>=1.4",
-  "pandarallel>=1.6",
-]
-
-# visualization / notebooks (optional)
+# plotting and figures
 viz = [
-  "matplotlib>=3.8",
   "seaborn>=0.13",
-  "plotly>=5.20",
-  "rich>=13.7",
+  "statannot>=0.2.3",
+  "tueplots>=0.0.17",
+]
+
+# notebooks
+notebook = [
   "jupyterlab>=4.0",
   "ipykernel>=6.29",
-]
-
-# model variants / research add-ons you have installed (optional)
-models = [
-  "linear-attention-transformer>=0.19",
-  "linformer>=0.2",
-  "xlstm>=2.0",
-  "mlstm-kernels>=2.0",
-  "tirex-ts>=1.3",
-  "local-attention>=1.9",
-  "axial-positional-embedding>=0.2",
-  "CoLT5-attention>=0.11",
-  "hyper-connections>=0.2",
-  "product-key-memory>=0.3",
-  "mlp-mixer-pytorch>=0.3",
-]
-
-# third-party EEG ML libs you had installed (optional)
-eeg-ml = [
-  "torcheeg>=1.1",
-  "braindecode>=0.8",
-  "skorch>=0.15",
-  "umap-learn>=0.5",
-  "timescoring>=0.0.6",
 ]
 
 dev = ["pytest>=8", "black>=24", "ruff>=0.6"]

@@ -224,7 +224,7 @@ class TUSZSelfsupervisedDatasetView(EpilepsiaDatasetView):
                     verbose=True,
                 )
 
-        self.__init_split_views()
+        self._init_split_views()
 
     # ----------------------------------------------------------------------------------
     # Config I/O
@@ -270,7 +270,7 @@ class TUSZSelfsupervisedDatasetView(EpilepsiaDatasetView):
     # ----------------------------------------------------------------------------------
     # Split views
     # ----------------------------------------------------------------------------------
-    def __init_split_views(self):
+    def _init_split_views(self):
         self.split_views = {
             split: self.samples_df.loc[self.samples_df["split"] == split].reset_index(drop=True)
             for split in ["train", "val", "test"]
@@ -1056,7 +1056,7 @@ class TUSZSelfsupervisedDatasetView(EpilepsiaDatasetView):
         hash_digest = hashlib.sha1(subset_str.encode()).hexdigest()[:8]
 
         # update split views
-        self.__init_split_views()
+        self._init_split_views()
 
         print(f"...randomized priority sampling: hash={hash_digest}, total={len(subset)} samples")
 

@@ -1,3 +1,29 @@
+"""
++----------------------------------------------------------------------------------------------------------------------+
+siena_selfsup_ds.py
+Self-supervised dataset view of the Siena Scalp EEG Database
+
+Project: NeuroNTP
+Institute for Machine Learning, Johannes Kepler University Linz
+Author:  Jozsef Kovacs (jozsef.kovacs@jku.at)
+License: MIT (see LICENSE)
++----------------------------------------------------------------------------------------------------------------------+
+
+Description:
+    Self-supervised dataset view on the Siena core dataset (SienaCoreDataset), used for fine-tuning and evaluation.
+
+    - Samples are sliding windows of seq_len timesteps of chunk_size_s seconds (default 30 x 10 s) over each
+      recording, read from the HDF5 store at 256 Hz.
+    - Each timestep carries its label, segment type, time past seizure and time to seizure.
+    - Patient-level split by default (test: PN14, PN16, PN17; val: PN11, PN12, PN13; train: all other patients);
+      create_siena_ds.py derives the balanced and test views from the default view.
+    - Sample normalisation: per-channel mean subtraction and scaling by the 95th percentile of |x| (torch).
+
+Dataset view tables:
+    samples_df     sample_id, patient, session, filename, start_index_256, end_index_256, split
+    chunks_df      sample_id, timestep, seg_type, label, time_past_seizure, time_to_seizure, markers, notes
++----------------------------------------------------------------------------------------------------------------------+
+"""
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple, Iterable
@@ -308,7 +334,7 @@ class SienaSelfSupervisedDatasetView(EpilepsiaDatasetView):
         Returns: (signals, chunks, marker_embs, notes_embs, metadata)
           - signals: FloatTensor (C, T, L) at 256 Hz
           - chunks:  numpy array of per-step metadata for the pipeline (like KUK)
-          - marker_embs/notes_embs: None (you can add later)
+          - marker_embs/notes_embs: None
           - metadata: dict
         """
         df = self.split_views[split] if split else self.samples_df

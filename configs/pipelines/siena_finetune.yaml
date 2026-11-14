@@ -1,0 +1,65 @@
+# Two-stage fine-tuning of the KUK-pretrained NeuroNTP model on Siena (balanced view), followed by the downstream
+# test on the held-out test patients of the reference protocol (test view: PN16, PN17)
+# python run_pipeline.py configs/pipelines/siena_finetune.yaml --device 0
+# another pretrained model: --set pretrained_ckpt=<checkpoint>
+
+vars:
+  pretrained_ckpt: models/pretrain/kuk/kuk_pretrained_mm.ckpt
+  bal_view: datasets/views/siena/siena_selfsup_dv_bal.h5
+  test_view: datasets/views/siena/siena_selfsup_16_17_dv.h5
+  save_path: models/finetune
+  seed: 42
+
+# released KUK-pretrained weights, downloaded on first use
+downloads:
+  models/pretrain/kuk/kuk_pretrained_mm.ckpt: https://cloud.ml.jku.at/s/Fs3sz2R7oWs6b6C/download
+
+common:
+  device: 0
+  wandb: true
+  random_seed: ${seed}
+  token_masking: true
+
+stages:
+  # stage 1: train the task-specific head with the next-token predictor (NTP) frozen
+  - name: stage1
+    mode: finetune
+    args:
+      run_name: DwsStage1_Siena_${seed}_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/siena_head.yaml
+      ds_view: ${bal_view}
+      ckpt_path: ${pretrained_ckpt}
+      save_path: ${save_path}
+      batch_size: 8
+      num_workers: 16
+      epochs: 50
+      lr: 0.0005
+      dws_loss_scope: last_eos
+      freeze_ntp: true
+
+  # stage 2: fine-tune the full model, starting from the best stage-1 checkpoint
+  - name: stage2
+    mode: finetune
+    args:
+      run_name: DwsStage2_Siena_${seed}_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/siena_dws.yaml
+      ds_view: ${bal_view}
+      ckpt_path: ${stage1.best_ckpt}
+      save_path: ${save_path}
+      batch_size: 4
+      num_workers: 8
+      epochs: 1
+      lr: 0.000005
+
+  # downstream test of the best stage-2 checkpoint on the test view
+  - name: test
+    mode: dws_test
+    args:
+      run_name: DwsTest_Siena_${seed}_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/siena_dws_test.yaml
+      ds_view: ${test_view}
+      ckpt_path: ${stage2.best_ckpt}
+      batch_size: 6
+      num_workers: 12
+      epochs: 1
+      freeze_all: true

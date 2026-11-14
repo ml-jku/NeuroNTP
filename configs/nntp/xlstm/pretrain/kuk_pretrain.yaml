@@ -1,0 +1,211 @@
+##############################
+# NeuroNTP Architecture cfg. #
+##############################
+# ... general settings
+embedding_dim: 1024          # embedding dimension for the multimodal encoder
+marker_emb_dim: 768          # clinical marker encoder native embedding dimension
+max_seq_len: 5000            # maximum sequence length for the multimodal encoder
+fusion_level: "channel"      # "timestep" | "channel"
+
+# ... fusion transformer (for timestep-level fusion)
+fuse_nhead: 16               # number of attention heads in the fusion transformer
+fuse_ffn_dim: 2048           # feedforward dimension in the fusion transformer
+fuse_dropout: 0.1            # dropout rate in the fusion transformer
+fuse_layers: 2               # number of fusion transformer layers
+
+# ... causal model (NTP) type
+ntp_type: "xLSTM"        # xLSTM | lintrafo | transformer | mamba
+
+# transformer and linear attention transformer
+trf_depth: 8             # causal transformer - depth
+trf_heads: 16            # causal transformer - heads
+trf_emb_dim: 616         # transformer embedding dim
+
+# xLSTM config (sLSTM-only, 37M parameters)
+xlstm:
+  embedding_dim: 1024
+  num_blocks: 8
+  context_length: 1536
+  slstm_block:
+    slstm:
+      backend: cuda
+      num_heads: 16
+      conv1d_kernel_size: 4
+      bias_init: powerlaw_blockdependent
+    feedforward:
+      proj_factor: 1.3
+      act_fn: gelu
+
+# MAMBA config
+mamba:
+  emb_dim: 840
+  depth: 8
+  d_state: 16
+  d_conv: 4
+  expand: 2
+
+##############################
+# Modality encoding config   #
+##############################
+# ... input modalities
+add_eeg: true                 # encode EEG biosignals
+add_non_eeg: true             # encode non-EEG biosignals
+add_composite: false          # add a composite token (all EEG + non-EEG encoded in the same tensor)
+add_eeg_location: true        # enrich encoded EEG tokens with respective electrode location 3D coordinates
+add_smell_channel_id: true    # add smell-channel ID to the respective smell sensor tokens
+add_tps: true                 # add time-past-seizure metadata token
+add_segtype: true             # add segment-type
+add_markers: true             # encode and add temporally aligned clinical markers
+add_notes: false              # enrich EoS token with clinical notes embedding
+add_gender: false             # enrich EoS token with patient gender
+add_age: false                # enrich EoS token with patient age
+add_hod: false                # enrich EoS token with Hour-of-Day session metadata
+add_end_of_segment: true      # add explicit end-of-segment (EoS) token (for fusion-level: channel)
+add_channel_subtypes: true    # add channel subtype information (e.g. "X" "Y" or "Z" for "ACC" accelerometer)
+
+# all signal channels - list of "<channel type> [<channel subtype>]"
+signal_channels: ['EEG FP1', 'EEG FP2', 'EEG F7', 'EEG F3', 'EEG FZ', 'EEG F4', 'EEG F8', 'EEG T7', 'EEG C3',
+                  'EEG CZ', 'EEG C4', 'EEG T8', 'EEG P7', 'EEG P3', 'EEG PZ', 'EEG P4',
+                  'EEG P8', 'EEG O1', 'EEG O2', 'EEG M1', 'EEG M2', 'EEG F10', 'EEG F9', 'EEG FT10', 'EEG FT8',
+                  'EEG FT7', 'EEG FT9', 'EEG T10', 'EEG T9', 'EEG EOGL', 'EEG EOGR', 'SAO2 SpO2', 'ECG EKG']
+
+##########################
+# Signal encoding params #
+##########################
+# ... STFT config
+sigenc_fft: 256           # STFT size
+sigenc_hoplen: 64         # hop length
+sigenc_morlet: false      # reserved, not implemented
+sigenc_freq_range:        # frequency bin range (f0, f1) of the STFT to keep; empty: all bins.
+
+# ... stem encoder config
+sigenc_stem_layers: 3       # signal encoder stem nr. of layers
+sigenc_stem_init_ch: 16     # initial number of channels
+sigenc_stem_out: 32         # nr. of output channels
+sigenc_stem_width_mult: 2   # multiply from initial width
+sigenc_stem_down_every: 2   # downsize stem every layer
+sigenc_stem_dropout: 0.1    # dropout probability in Resblock
+
+# ... channel-specific head config
+sigenc_cnn_stride: 2        # CNN stride
+sigenc_bottleneck: 16       # bottleneck
+sigenc_lora_rank: 4         # adaptive layer rank
+
+##############################
+# Metadata and text encoding #
+##############################
+# ... TPS and TTS encoding
+seizure_len_cap: 300                  # max. length of a seizure in seconds (assuming status epilepticus)
+tps_cap: 86400                        # cap on the time-past-seizure metadata token
+tps_logspace: true                    # use logarithmic scale for the TPS token encoding
+tts_cap: 10800                        # cap on the time-to-seizure metadata token
+tts_logspace: true                    # use logarithmic scale for the TTS token encoding
+time_cap_softness: 1000               # softness parameter of the time-to-seizure token encoding
+
+# ... clinical marker and notes encoding
+omit_empty_marker: true                 # whether empty markers should be omitted or treated as placeholder
+collate_markers: true                   # whether to encode markers belonging to the same chunk collated
+marker_encoder: GerMedBERT/medbert-512  # the pretrained clinical marker encoder to use
+
+###############################
+# Multi-task settings         #
+###############################
+predict_token_type: true                # predict token type
+decode_markers: true                    # reconstruct markers (multi-label)
+predict_segtype: true                   # predict segments type (ictal/non-ictal)
+predict_tps: true                       # predict time-past-seizure (TPS)
+predict_tts: true                       # predict time-to-seizure (TTS)
+
+###############################
+# Downstream settings         #
+###############################
+downstream_tasks:
+  enabled: false
+  tasks:
+    ntp_segtype:
+      weight: 1.0
+      attach_on: "ntp"   # "mmt" | "ntp"
+      class: "neuro_ntp.model.ntp.neuro_ntp.BinaryClassifier"
+      kwargs:
+        hidden_dim: 256
+        dropout: 0.2
+finetuning_coeff: 0.7
+onset_weighting: false    # use onset weighting - first ictal chunk weighs more (NOT USED)
+max_ts: 1000000000        # timestep cap
+
+
+###############################
+# Sampling and regularisation #
+###############################
+
+# ... priority sampling (pretraining)
+event_frac: 0.2                   # fraction of samples with events to include in the epoch
+nonevent_frac: 0.01               # fraction of samples without events to include in the epoch
+
+# ... regularisation settings
+signals_channel_drop_prob : 0.25          # drop channels with probability
+signals_channel_drop_train_only : true    # drop channels only in training regime
+signals_channel_drop_min_keep : 9         # min. number of channels to keep after channel dropout
+# always keep these channels (random dropping in pre-training)
+signals_channel_never_drop : ['EEG FP1', 'EEG FP2', 'EEG F7', 'EEG F3', 'EEG FZ', 'EEG F4', 'EEG F8', 'EEG C3',
+                              'EEG CZ', 'EEG C4', 'EEG P3', 'EEG PZ', 'EEG P4', 'EEG O1', 'EEG O2']
+channel_dropout: false                    # apply channel dropout
+keep_eeg_ch: 29                           # min. number of EEG channels to keep
+payload_noise: 0.0                        # probability of applying payload noise (to signal)
+segtype_mask_prob: 1.0                    # masking probability of segment type (if added to input in pretraining)
+tps_mask_prob: 0.5                        # masking probability of TPS (if added to input)
+markers_mask_prob: 0.5                    # masking probability of marker tokens (if added to input)
+notes_mask_prob: 0.5                      # masking probability of notes (if added to input)
+emb_dropout: 0.1                          # dropout probability applied to the continuous token embeddings
+token_dropout_prob: 0.0                   # probability of token dropout (for random token dropout)
+
+mask_scheduler_enabled: true              # mask scheduler for pretraining - starts from initial masking probability
+mask_sch_p1: 0.9                          # probability of masking at the end of the schedule
+mask_sch_warmup: 30                       # number of epochs in warmup (no schedule)
+mask_sch_target: 70                       # number of epochs to reach p1 masking probability
+
+
+###############################
+# Pretraining configuration   #
+###############################
+# ... loss coefficients
+pt_loss_alfa: 0.5        # next-token prediction loss factor (primary objective)
+pt_loss_beta: 0.1        # token-type loss factor (auxiliary task)
+pt_loss_gamma: 0.05      # time-past-seizure loss factor (auxiliary task)
+pt_loss_delta: 0.15      # time-to-seizure loss factor (auxiliary task)
+pt_loss_epsilon: 0.15    # segment-type loss factor (auxiliary task)
+pt_loss_zeta: 0.05       # marker-embedding reconstruction (auxiliary task)
+
+pt_toktype_weights:
+  Marker: 1.0                 # class weights to adjust only specified classes
+pt_toktype_pos_weight: 1.0
+pt_segtype_weights: [0.15, 0.7, 0.15]   # [non-ictal, ictal, unspecified] (NOT USED)
+pt_segtype_focal_alpha: 0.25  # focal loss alpha parameter
+pt_segtype_focal_gamma: 2.0   # focal loss gamma parameter
+ntp_loss: L1                  # next-token prediction loss
+pt_quantiles:                 # quantiles and weights for the quantile-loss
+  0.1: 0.1
+  0.25: 0.2
+  0.5: 0.4
+  0.75: 0.2
+  0.9: 0.1
+
+pt_tps_s1loss_beta: 0.5       # SmoothL1 beta for TPS
+pt_tts_s1loss_beta: 0.5       # SmoothL1 beta for TTS
+
+pt_marker_ntxent_temp: 0.2    # NTXent temperature (marker reconstruction, deprecated)
+pt_marker_ntxent_trsh: 0.6    # NTXent similarity threshold (marker reconstruction, deprecated)
+
+pt_marker_quantiles:          # quantile loss for marker embedding reconstruction
+  0.1: 0.1
+  0.25: 0.2
+  0.5: 0.4
+  0.75: 0.2
+  0.9: 0.1
+
+###############################
+# Dataset classes to use      #
+###############################
+core_dataset_class: "neuro_ntp.data.kuk.kuk_dataset.KUKCoreDataset"
+dataset_view_class: "neuro_ntp.data.kuk.kuk_selfsup_ds.KUKSelfsupervisedDatasetView"
+continuous_iterable_class: "neuro_ntp.data.kuk.kuk_conti_ds.KUKContinuousSelfSupIterable"

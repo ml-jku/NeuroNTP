@@ -1,0 +1,40 @@
+# TUSZ - Self-supervised 30 x 10-sec = 5-min pretraining dataset view
+# -------------------------------------------------------------------
+core_dataset_class: "neuro_ntp.data.tusz.tusz_dataset.TUSZCoreDataset"
+dataset_view_class: "neuro_ntp.data.tusz.tusz_selfsup_ds.TUSZSelfsupervisedDatasetView"
+
+sampling_strategy: pretraining         # pretraining
+split: patient                         # how to split the samples: temporal|patient|random
+split_ratio:                           # the split ratio: training, validation, test 
+- 0.7
+- 0.05
+- 0.25
+sliding_window: false                  # use sliding window
+
+sampling_freq: 256                     # sampling frequency
+seq_len: 30                            # sequence length (nr. of chunks taken for historic context)
+chunk_size: 10.0                       # length of one chunk in seconds
+overlap: 0.0                           # overlap between chunks (default: 0)
+max_ts: 1000000000                     # maximum value in TPS/TTS calculations
+
+omit_nonictal_patients: false          # should patients without any seizures be omitted in sampling
+omit_nonictal_sessions: false          # should session (files) without any seizures be omitted in sampling
+lead_seizure_separation: 3600          # distance of a lead seizure from any preceding seizure (separation)
+postictal_separation: 900              # min. time after ictal in sec. to consider a sample baseline (non-ictal)
+preictal_length: 900                   # length (in seconds) of pre-ictal interval to sample from
+preictal_setback: 300                  # interval before ictal not to sample from (bin.forecasting and threefold)
+
+channels: all                          # which channels to use (for TUSZ this is taken from the dataset/core DS)
+min_num_channels: 33                   # min. number of channels for acceptable sample
+
+priority_markers:                      # NOT USED : not used for TUSZ
+- EEG-Beginn
+
+exclude_markers:                       # NOT USED : not used for TUSZ
+- VID
+
+markers_to_reconstruct:                # NOT USED : not used for TUSZ
+- anfall
+
+channel_order:                         # NOT USED : this is taken dynamically from the core dataset / preproc. datafile
+- EEG FP1

@@ -1,0 +1,29 @@
+# Downstream test of the released CHB-MIT fine-tuned NeuroNTP model (BIOT-compatible view; test: chb23, chb24)
+# python run_pipeline.py configs/pipelines/chb_dws_test_biot.yaml --device 0
+# another fine-tuned model: --set finetuned_ckpt=<checkpoint>
+
+vars:
+  finetuned_ckpt: models/finetune/chbmit/chbmit_finetuned_biot.ckpt
+  ds_view: datasets/views/chbmit/chbmit_selfsup_10s_biot.h5
+
+# released CHB-MIT fine-tuned weights, downloaded on first use
+downloads:
+  models/finetune/chbmit/chbmit_finetuned_biot.ckpt: https://cloud.ml.jku.at/s/WCfrj9ewfM3sypN/download
+
+common:
+  device: 0
+  wandb: false
+
+stages:
+  # downstream test of the fine-tuned model on the test split of the view
+  - name: test
+    mode: dws_test
+    args:
+      run_name: DwsTest_CHB_BIOT_Released_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/chb_dws_biot.yaml
+      ds_view: ${ds_view}
+      ckpt_path: ${finetuned_ckpt}
+      batch_size: 6
+      num_workers: 12
+      epochs: 1
+      freeze_all: true

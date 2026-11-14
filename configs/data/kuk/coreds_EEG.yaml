@@ -1,0 +1,23 @@
+# KUK v3 - Core dataset - segmentation strategy configuration
+# -----------------------------------------------------------
+markers:                        # markers used in ictal/interictal segmentation
+  eeg_ending: EEG-Ende                # EEG end marker
+  eeg_onset: EEG-Beginn               # EEG onset marker
+  seizure_onset: Anfall               # seizure onset marker
+  video_ending: Anfallsende           # video end marker
+  video_onset: Anfallsbeginn          # video onset marker
+notes:
+  false_alarm: Fehlalarm              # false alarm indication in free-text notes
+  text_ending: Ende                   # free-text notes indicating possible end (if no end marker)
+params:
+  max_ictal_duration: 300             # maximum ictal duration (status epilepticus assumed)
+  onset_separation_thold: 5           # merging threshold
+  unconfirmed_separation: 60          # minimum separation from unconfirmed seizure (no seizure marker)
+  video_onset_separation: 30          # minumum separation from video onset annotation
+policy:                               # high-level segmentation policy
+  add_video_only_onsets: false        # add segments with video-only onset annotation
+  drop_false_alarms: true             # drop ictal segments containing false-alarm marker/note
+  false_alarm_within: 5               # proximity of false alarm from onset to invalidate
+  include_noEEG_noVID: false          # include only text-indicated onset (no EEG/video confirmation)
+  seizure_marker_must_precede: true   # EEG onset annotation must be preceded by seizure marker
+  seizure_marker_within: 3            # max. distance of seizure marker from EEG onset to consider ictal

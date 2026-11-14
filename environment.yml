@@ -4,11 +4,18 @@ channels:
   - nvidia
   - defaults
 dependencies:
-  - python=3.11.14
+  - python=3.11
   - pip
+  # CUDA toolkit and ninja are needed to compile CUDA extensions (xLSTM sLSTM kernels, optional mamba-ssm)
   - cuda-toolkit>=12.8,<12.9
   - ninja
 
   - pip:
-      - -e .[torch,eeg,data,viz,models,eeg-ml,dev]
-      - timescoring==0.0.6
+      # PyTorch CUDA 12.8 build (version used for the experiments: torch 2.11.0+cu128)
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0
+      # neuro_ntp with optional extras
+      # the optional Mamba backbone is installed separately after the environment is created, since mamba-ssm has
+      # to be built against the installed torch:
+      #   conda activate neurontp && . ./nntp.env && pip install "mamba-ssm>=2.3" --no-build-isolation
+      - -e .[viz,notebook,dev]

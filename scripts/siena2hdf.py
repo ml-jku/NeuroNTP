@@ -57,7 +57,7 @@ Usage:
     Defaults: resampling to 256 Hz, gzip level 4.
 
 Notes:
-    - Storage: approx. 17 GB for the Siena Scalp EEG Database v1.0.0 with the default settings.
+    - Storage: approx. 13 GB for the Siena Scalp EEG Database v1.0.0 with the default settings.
     - Recordings are matched to seizure-list entries by file name: by exact match first, then without a trailing
       "-<n>" suffix, then by a unique prefix match within the same patient.
     - Seizures whose end time does not follow the start time are given a duration of 1 s.
@@ -635,7 +635,7 @@ def main():
     args = ap.parse_args()
 
     siena_root = Path(args.siena_root)
-    out_root = Path(args.out_hdf_root)
+    out_root = Path(args.out_hdf_root).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
 
     # build seizure index from the per-patient seizure lists, or from a precomputed table if given

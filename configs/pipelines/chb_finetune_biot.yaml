@@ -1,0 +1,67 @@
+# Two-stage fine-tuning of a pretrained NeuroNTP model on CHB-MIT (BIOT-compatible view/reference protocol), 
+# followed by the downstream test of the fine-tuned model
+# python run_pipeline.py configs/pipelines/chb_finetune_biot.yaml --device 0 --set pretrained_ckpt=<checkpoint>
+
+vars:
+  pretrained_ckpt: models/pretrain/kuk/kuk_pretrained_mm.ckpt
+  ds_view: datasets/views/chbmit/chbmit_selfsup_10s_biot.h5
+  save_path: models/finetune
+  seed: 32
+
+# released KUK-pretrained weights, downloaded on first use
+downloads:
+  models/pretrain/kuk/kuk_pretrained_mm.ckpt: https://cloud.ml.jku.at/s/Fs3sz2R7oWs6b6C/download
+
+common:
+  device: 0
+  wandb: true
+  ds_view: ${ds_view}
+  random_seed: ${seed}
+
+stages:
+  # stage 1: train the task-specific head on the frozen tokenizer (MMT) and next-token predictor (NTP)
+  - name: stage1
+    mode: finetune
+    args:
+      run_name: DwsStage1_CHB_BIOT_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/chb_dws_head.yaml
+      ckpt_path: ${pretrained_ckpt}
+      save_path: ${save_path}
+      batch_size: 8
+      num_workers: 16
+      epochs: 6
+      lr: 0.0005
+      freeze_mmt: true
+      freeze_ntp: true
+      random_subsampling: true
+      random_subset_size: 1.0
+      proximity_radius: 450
+      patience: 3
+
+  # stage 2: fine-tune the full model, starting from the best stage-1 checkpoint
+  - name: stage2
+    mode: finetune
+    args:
+      run_name: DwsStage2_CHB_BIOT_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/chb_dws_biot.yaml
+      ckpt_path: ${stage1.best_ckpt}
+      save_path: ${save_path}
+      batch_size: 4
+      num_workers: 8
+      epochs: 1
+      lr: 0.00001
+      random_subsampling: true
+      random_subset_size: 1.0
+      proximity_radius: 450
+
+  # downstream test of the best stage-2 checkpoint
+  - name: test
+    mode: dws_test
+    args:
+      run_name: DwsTest_CHB_BIOT_${run_id}
+      nntp_cfg: configs/nntp/xlstm/finetune/chb_dws_biot.yaml
+      ckpt_path: ${stage2.best_ckpt}
+      batch_size: 6
+      num_workers: 12
+      epochs: 1
+      freeze_all: true

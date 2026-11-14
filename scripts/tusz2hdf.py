@@ -63,7 +63,7 @@ Usage:
     length 300 s. Filters can be disabled with --bandpass none / --notch none.
 
 Notes:
-    - Storage: approx. 173 GB for TUSZ v2.0.3 with the default settings.
+    - Storage: approx. 129 GB for TUSZ v2.0.3 with the default settings.
     - Channel consistency across the segments of a session is only checked with --require_same_channels; otherwise
       all segments are assumed to share the channel layout of the first segment.
     - Annotation onsets and durations are in seconds on the stitched session time axis.
@@ -635,7 +635,7 @@ def main():
     notch = None if args.notch.lower() == "none" else float(args.notch)
 
     tusz_root = Path(args.tusz_edf_root)
-    out_root = Path(args.out_hdf_root)
+    out_root = Path(args.out_hdf_root).resolve()
     out_root.mkdir(parents=True, exist_ok=True)
 
     edfs = list_edfs(tusz_root)

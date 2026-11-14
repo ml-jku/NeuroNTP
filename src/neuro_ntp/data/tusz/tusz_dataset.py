@@ -578,11 +578,11 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
         self.session_df["non_ictal_duration"] = self.session_df["non_ictal_duration"].fillna(0.0).astype(float)
 
         self.session_df["total_duration_sec"] = self.session_df["duration_sec"].astype(float)
-        with pd.option_context("mode.use_inf_as_na", True):
-            self.session_df["ictal_ratio"] = (
-                self.session_df["ictal_duration"] /
-                self.session_df["total_duration_sec"].replace(0, pd.NA)
-            ).astype(float)
+        self.session_df = self.session_df.replace([np.inf, -np.inf], np.nan)
+        self.session_df["ictal_ratio"] = (
+            self.session_df["ictal_duration"] /
+            self.session_df["total_duration_sec"].replace(0, np.nan)
+        ).astype(float)
 
         self.patients_df = (
             self.session_df
@@ -596,11 +596,12 @@ class TUSZCoreDataset(EpilepsiaCoreDataset):
                 non_ictal_duration=("non_ictal_duration", "sum"),
             )
         )
-        with pd.option_context("mode.use_inf_as_na", True):
-            self.patients_df["ictal_ratio"] = (
-                self.patients_df["ictal_duration"] /
-                self.patients_df["total_duration_sec"].replace(0, pd.NA)
-            ).astype(float)
+
+        self.patients_df = self.patients_df.replace([np.inf, -np.inf], np.nan)
+        self.patients_df["ictal_ratio"] = (
+            self.patients_df["ictal_duration"] /
+            self.patients_df["total_duration_sec"].replace(0, np.nan)
+        ).astype(float)
 
     # ---------------------------------------------------------------------
     # Types for persistence
