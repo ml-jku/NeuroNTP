@@ -98,13 +98,13 @@ neuro-ntp/
 
 Each pretraining, fine-tuning or evaluation session is one run of `src/neuro_ntp/nntp.py`, configured by two main inputs: a model configuration (`--nntp_cfg`, see [configs/nntp](configs/nntp/README.md)) and a dataset view (`--ds_view`, created by the preprocessing scripts).
 
-| Mode (`--mode`) | Purpose |
-|---|---|
-| `pretrain` | training from scratch, or continued pretraining from a checkpoint (`--ckpt_path`) |
-| `linprobe` | linear probing via continued pretraining with a probing configuration |
-| `evaluate` | evaluation on the test split with the default auxiliary heads (also zero-shot on another dataset) |
-| `finetune` | fine-tuning with a task-specific head attached to the next-token predictor |
-| `dws_test` | downstream test of a fine-tuned model |
+| Mode<br/> (`--mode`) | Purpose |
+|----------------------|---|
+| `pretrain`           | training from scratch, or continued pretraining from a checkpoint (`--ckpt_path`) |
+| `linprobe`           | linear probing via continued pretraining with a probing configuration |
+| `evaluate`           | evaluation on the test split with the default auxiliary heads (also zero-shot on another dataset) |
+| `finetune`           | fine-tuning with a task-specific head attached to the next-token predictor |
+| `dws_test`           | downstream test of a fine-tuned model |
 
 Frequently used arguments:
 
@@ -156,7 +156,6 @@ The weights of the model pretrained on the Kepler Universitätsklinikum (KUK) da
 
 Currently, the pretraining code is compatible with single GPU training only, multi-GPU is not supported.
 
----
 ## Quick start: evaluating a fine-tuned model on Siena
 ⏱️ **Estimated time:** ~45 min
 
